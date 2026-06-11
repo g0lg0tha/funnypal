@@ -123,7 +123,6 @@
     text-shadow: 0 2px 4px #000;
   }
 
-  /* Grid Layout Implementations with fluid scaling breakpoints */
   .column-headers, .capsule-row {
     display: grid;
     align-items: center;
@@ -204,7 +203,6 @@
     font-weight: 500;
   }
 
-  /* Responsive 48 Teams Setup Layout Matrix */
   .double-deck {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -426,25 +424,29 @@ function calculateMatches(games) {
   if (!Array.isArray(games)) return scores;
 
   games.forEach(g => {
-    // Structural resolution targeting nested english keys from API payload schema
     const rawHome = g.home_team_en || g.home_team || g.homeTeam || g.home || "";
     const rawAway = g.away_team_en || g.away_team || g.awayTeam || g.away || "";
     
     const homeKey = findInternalTeamKey(rawHome);
     const awayKey = findInternalTeamKey(rawAway);
 
-    const hs = parseInt(g.home_score ?? -1);
-    const as = parseInt(g.away_score ?? -1);
+    // Explicitly fallback to null on blank string or unassigned matches
+    const homeRawScore = g.home_score ?? g.homeScore ?? g.home_team_score ?? null;
+    const awayRawScore = g.away_score ?? g.awayScore ?? g.away_team_score ?? null;
 
-    if (homeKey && awayKey && hs >= 0 && as >= 0) {
-      if (hs > as) {
-        scores[homeKey].match += 8;
-      } else if (as > hs) {
-        scores[awayKey].match += 8;
-      } else {
-        scores[homeKey].match += 4;
-        scores[awayKey].match += 4;
-      }
+    const hs = (homeRawScore === "" || homeRawScore === null) ? -1 : parseInt(homeRawScore);
+    const as = (awayRawScore === "" || awayRawScore === null) ? -1 : parseInt(awayRawScore);
+
+    // If scores contain NaN or fall below 0, safely drop the match calculation row
+    if (!homeKey || !awayKey || isNaN(hs) || isNaN(as) || hs < 0 || as < 0) return;
+
+    if (hs > as) {
+      scores[homeKey].match += 8;
+    } else if (as > hs) {
+      scores[awayKey].match += 8;
+    } else {
+      scores[homeKey].match += 4;
+      scores[awayKey].match += 4;
     }
   });
 
@@ -458,7 +460,6 @@ async function refreshData() {
     const wrappedData = await response.json();
     const parsedPayload = JSON.parse(wrappedData.contents);
     
-    // Unrolls payload root variations safely
     let gamesList = [];
     if (Array.isArray(parsedPayload)) {
       gamesList = parsedPayload;
