@@ -126,12 +126,13 @@ text-align: center;
 gap: 4px;
 }
 
-.leaderboard-cols { grid-template-columns: 35px 1.5fr 40px 45px 45px 50px; }
-.team-cols { grid-template-columns: 35px 1.4fr 0.8fr 35px 35px 35px 35px; }
+/* Reconfigured grid configurations to handle removed bonus values gracefully */
+.leaderboard-cols { grid-template-columns: 35px 1.5fr 50px 50px 60px; }
+.team-cols { grid-template-columns: 35px 1.4fr 0.8fr 50px 50px 60px; }
 
 @media (min-width: 650px) {
-.leaderboard-cols { grid-template-columns: 80px 1fr 120px 120px 120px 120px; }
-.team-cols { grid-template-columns: 70px 1.5fr 1.2fr 100px 100px 100px 100px; }
+.leaderboard-cols { grid-template-columns: 80px 1fr 140px 140px 140px; }
+.team-cols { grid-template-columns: 70px 1.5fr 1.2fr 110px 110px 110px; }
 }
 
 .grid-headers span {
@@ -208,12 +209,15 @@ align-items: center;
 gap: 6px;
 }
 
-.flag-icon {
-font-family: 'Twemoji Country Flags', 'Oswald', sans-serif;
-font-size: 1.2em;
-font-style: normal;
+.flag-badge {
+width: clamp(18px, 3.5vw, 22px);
+height: clamp(11px, 2.2vw, 14px);
+object-fit: cover;
+box-shadow: 0 1px 3px rgba(0,0,0,0.7);
+border: 1px solid rgba(255,255,255,0.15);
 display: inline-block;
 vertical-align: middle;
+flex-shrink: 0;
 }
 
 .score-cell-digits {
@@ -240,12 +244,6 @@ white-space: nowrap;
 
 .vacant-badge { color: #523423; font-style: italic; font-size: 0.8rem; }
 </style>
-
-<script type="module" defer>
-import { polyfillCountryFlagEmojis } from "https://cdn.skypack.dev/country-flag-emoji-polyfill";
-polyfillCountryFlagEmojis();
-</script>
-
 </head>
 <body>
 
@@ -268,7 +266,6 @@ polyfillCountryFlagEmojis();
                 <span class="left-align">Player</span>
                 <span>Seed</span>
                 <span>Match</span>
-                <span>Bonus</span>
                 <span>Total</span>
             </div>
             <div id="leaderboard"></div>
@@ -284,7 +281,6 @@ polyfillCountryFlagEmojis();
                 <span>Owner</span>
                 <span>Seed</span>
                 <span>Match</span>
-                <span>Bonus</span>
                 <span>Total</span>
             </div>
             <div id="teams"></div>
@@ -294,39 +290,35 @@ polyfillCountryFlagEmojis();
 
 <script>
 const PLAYERS = {
-  RoR: ["Brazil", "Germany", "Denmark", "Poland", "Canada", "Saudi Arabia"],
-  Bendover: ["Argentina", "Croatia", "Mexico", "South Korea", "Cameroon", "Tunisia"],
-  Dave: ["France", "Netherlands", "USA", "Japan", "Ecuador", "Costa Rica"],
+  RoR: ["Brazil", "Germany", "Norway", "Czechia", "Canada", "Saudi Arabia"],
+  Bendover: ["Argentina", "Croatia", "Mexico", "South Korea", "Sweden", "Tunisia"],
+  Dave: ["France", "Netherlands", "USA", "Japan", "Ecuador", "Austria"],
   Andrew: ["England", "Portugal", "Switzerland", "Senegal", "Iran", "Australia"],
-  Mick: ["Spain", "Belgium", "Uruguay", "Morocco", "Serbia", "South Africa"]
+  Mick: ["Spain", "Belgium", "Uruguay", "Morocco", "Algeria", "South Africa"]
 };
 
-const SEEDS={
-    'France':1,'Spain':2,'Argentina':3,'England':4,'Portugal':5,'Brazil':6,'Netherlands':7,'Morocco':8,'Belgium':9,'Germany':10,
-    'Croatia':11,'Colombia':12,'Senegal':13,'Mexico':14,'USA':15,'Uruguay':16,'Japan':17,'Switzerland':18,'Iran':19,'Türkiye':20,
-    'Ecuador':21,'Austria':22,'South Korea':23,'Australia':24,'Algeria':25,'Egypt':26,'Canada':27,'Norway':28,'Panama':29,
-    'Ivory Coast':30,'Sweden':31,'Paraguay':32,'Czechia':33,'Scotland':34,'Tunisia':35,'DR Congo':36,'Uzbekistan':37,'Qatar':38,
-    'Iraq':39,'South Africa':40,'Saudi Arabia':41,'Jordan':42,'Bosnia & Herzegovina':43,'Cape Verde':44,'Ghana':45,'Curaçao':46,
-    'Haiti':47,'New Zealand':48
+const SEEDS = {
+  'France':1,'Spain':2,'Argentina':3,'England':4,'Portugal':5,'Brazil':6,'Netherlands':7,'Morocco':8,'Belgium':9,'Germany':10,
+  'Croatia':11,'Colombia':12,'Senegal':13,'Mexico':14,'USA':15,'Uruguay':16,'Japan':17,'Switzerland':18,'Iran':19,'Türkiye':20,
+  'Ecuador':21,'Austria':22,'South Korea':23,'Australia':24,'Algeria':25,'Egypt':26,'Canada':27,'Norway':28,'Panama':29,
+  'Ivory Coast':30,'Sweden':31,'Paraguay':32,'Czechia':33,'Scotland':34,'Tunisia':35,'DR Congo':36,'Uzbekistan':37,'Qatar':38,
+  'Iraq':39,'South Africa':40,'Saudi Arabia':41,'Jordan':42,'Bosnia & Herzegovina':43,'Cape Verde':44,'Ghana':45,'Curaçao':46,
+  'Haiti':47,'New Zealand':48
 };
 
-const FLAGS={
-    'France':'🇫🇷','Spain':'🇪🇸','Argentina':'🇦🇷','England':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Portugal':'🇵🇹','Brazil':'🇧🇷','Netherlands':'🇳🇱','Morocco':'🇲🇦',
-    'Belgium':'🇧🇪','Germany':'🇩🇪','Croatia':'🇭🇷','Colombia':'🇨🇴','Senegal':'🇸🇳','Mexico':'🇲🇽','USA':'🇺🇸','Uruguay':'🇺🇾',
-    'Japan':'🇯🇵','Switzerland':'🇨🇭','Iran':'🇮🇷','Türkiye':'🇹🇷','Ecuador':'🇪🇨','Austria':'🇦🇹','South Korea':'🇰🇷','Australia':'🇦🇺',
-    'Algeria':'🇩🇿','Egypt':'🇪🇬','Canada':'🇨🇦','Norway':'🇳🇴','Panama':'🇵🇦','Ivory Coast':'🇨🇮','Sweden':'🇸🇪','Paraguay':'🇵🇾',
-    'Czechia':'🇨🇿','Scotland':'🏴󠁧󠁢󠁳󠁣󠁴󠁿','Tunisia':'🇹🇳','DR Congo':'🇨🇩','Uzbekistan':'🇺🇿','Qatar':'🇶🇦','Iraq':'🇮🇶','South Africa':'🇿🇦',
-    'Saudi Arabia':'🇸🇦','Jordan':'🇯🇴','Bosnia & Herzegovina':'🇧🇦','Cape Verde':'🇨🇻','Ghana':'🇬🇭','Curaçao':'🇨🇼','Haiti':'🇭🇹','New Zealand':'🇳🇿'
+const FLAG_CODES = {
+  'France':'fr','Spain':'es','Argentina':'ar','England':'gb-eng','Portugal':'pt','Brazil':'br','Netherlands':'nl','Morocco':'ma',
+  'Belgium':'be','Germany':'de','Croatia':'hr','Colombia':'co','Senegal':'sn','Mexico':'mx','USA':'us','Uruguay':'uy','Japan':'jp',
+  'Switzerland':'ch','Iran':'ir','Türkiye':'tr','Ecuador':'ec','Austria':'at','South Korea':'kr','Australia':'au','Algeria':'dz',
+  'Egypt':'eg','Canada':'ca','Norway':'no','Panama':'pa','Ivory Coast':'ci','Sweden':'se','Paraguay':'py','Czechia':'cz',
+  'Scotland':'gb-sct','Tunisia':'tn','DR Congo':'cd','Uzbekistan':'uz','Qatar':'qa','Iraq':'iq','South Africa':'za',
+  'Saudi Arabia':'sa','Jordan':'jo','Bosnia & Herzegovina':'ba','Cape Verde':'cv','Ghana':'gh','Curaçao':'cw','Haiti':'ht',
+  'New Zealand':'nz'
 };
 
-// ==========================================
-// MASTER EMBEDDED TOURNAMENT DATA MATRIX
-// ==========================================
 const EMBEDDED_FALLBACK_FIXTURES = [
-  { "home": "Mexico", "away": "South Africa", "score1": 2, "score2": 0, "ht_score1": 1, "ht_score2": 0 },
-  { "home": "South Korea", "away": "Czechia", "score1": 2, "score2": 1, "ht_score1": 0, "ht_score2": 0 },
-  { "home": "Canada", "away": "Bosnia & Herzegovina", "score1": null, "score2": null, "ht_score1": null, "ht_score2": null },
-  { "home": "USA", "away": "Paraguay", "score1": null, "score2": null, "ht_score1": null, "ht_score2": null }
+  { "home": "Mexico", "away": "South Africa", "score1": 2, "score2": 0 },
+  { "home": "South Korea", "away": "Czechia", "score1": 2, "score2": 1 }
 ];
 
 let teamScores={};
@@ -356,7 +348,7 @@ function owner(team){
 
 function calculate(games){
     const scores={};
-    Object.keys(SEEDS).forEach(t=>scores[t]={match:0,bonus:0});
+    Object.keys(SEEDS).forEach(t=>scores[t]={match:0});
     if (!Array.isArray(games)) return scores;
 
     games.forEach(g => {
@@ -378,13 +370,6 @@ function calculate(games){
         if(hs > as) scores[home].match += 8;
         else if(as > hs) scores[away].match += 8;
         else { scores[home].match += 4; scores[away].match += 4; }
-
-        const diff = Math.abs(SEEDS[home] - SEEDS[away]);
-        if(diff >= 5){
-            const underdog = SEEDS[home] > SEEDS[away] ? home : away;
-            let hth = g.ht_score1 ?? g.ht_home_score;
-            let hta = g.ht_score2 ?? g.ht_away_score;
-        }
     });
     return scores;
 }
@@ -397,7 +382,7 @@ async function refreshData(){
     const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl) + '&cb=' + Date.now();
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1500); // Strict 1.5s gateway processing limit
+    const timeoutId = setTimeout(() => controller.abort(), 1500);
 
     let games = null;
 
@@ -415,16 +400,21 @@ async function refreshData(){
         }
     } catch(e) {
         clearTimeout(timeoutId);
-        console.warn("Proxy gateway timing warning. Invoking instant failover engine.");
+        console.warn("Proxy gateway timeout. Reverting to cached values.");
     }
 
     if (games && Array.isArray(games) && games.length > 0) {
         teamScores = calculate(games);
         localStorage.setItem('wc26_failsafe_matrix', JSON.stringify(teamScores));
     } else {
-        // Instant load fallback: renders from your local code data instantly with zero freeze
-        teamScores = calculate(EMBEDDED_FALLBACK_FIXTURES);
-        statusBox.innerText = 'Offline Standby Engine Active';
+        const cachedScores = localStorage.getItem('wc26_failsafe_matrix');
+        if (cachedScores) {
+            teamScores = JSON.parse(cachedScores);
+            statusBox.innerText = 'Loaded From Cache';
+        } else {
+            teamScores = calculate(EMBEDDED_FALLBACK_FIXTURES);
+            statusBox.innerText = 'Standby System Engine Active';
+        }
     }
     render();
 }
@@ -433,36 +423,36 @@ function render(){
     let teams=Object.keys(SEEDS).map(t=>({
         team:t,seed:SEEDS[t],
         match:(teamScores[t]?.match||0),
-        bonus:(teamScores[t]?.bonus||0),
-        total:SEEDS[t]+(teamScores[t]?.match||0)+(teamScores[t]?.bonus||0)
+        total:SEEDS[t]+(teamScores[t]?.match||0)
     }));
 
     document.getElementById('teams').innerHTML=teams.sort((a,b)=>a.seed-b.seed).map(t=>{
         const teamOwner = owner(t.team);
         const ownerMarkup = teamOwner ? `<span class="owner-capsule-badge">${teamOwner}</span>` : `<span class="vacant-badge">—</span>`;
+        const code = FLAG_CODES[t.team] || 'un';
+        
         return `
         <div class="capsule-row team-cols">
             <span class="rank-pill-value">${t.seed}</span>
             <span class="contender-name team-contender-name left-align">
-                <i class="flag-icon">${FLAGS[t.team]||''}</i> ${t.team.toUpperCase()}
+                <img class="flag-badge" src="https://flagcdn.com/w40/${code}.png" alt="" onerror="this.style.display='none'">
+                ${t.team.toUpperCase()}
             </span>
             <div>${ownerMarkup}</div>
             <div class="score-cell-digits">${t.seed}</div>
             <div class="score-cell-digits">${t.match}</div>
-            <div class="score-cell-digits">${t.bonus}</div>
             <div class="score-cell-digits" style="font-weight:700; color:#ffcc80;">${t.total}</div>
         </div>`;
     }).join('');
 
     let players=[];
     for(const [name,list] of Object.entries(PLAYERS)){
-        let seed=0,match=0,bonus=0;
+        let seed=0,match=0;
         list.forEach(t=>{
-            seed+=SEEDS[t];
+            seed+=SEEDS[t] || 0;
             match+=(teamScores[t]?.match||0);
-            bonus+=(teamScores[t]?.bonus||0);
         });
-        players.push({name,seed,match,bonus,total:seed+match+bonus});
+        players.push({name,seed,match,total:seed+match});
     }
     players.sort((a,b)=>b.total-a.total);
 
@@ -479,7 +469,6 @@ function render(){
             <span class="contender-name player-contender-name left-align">${p.name.toUpperCase()}</span>
             <div class="score-cell-digits">${p.seed}</div>
             <div class="score-cell-digits">${p.match}</div>
-            <div class="score-cell-digits">${p.bonus}</div>
             <div class="score-cell-digits" style="font-weight:700; color:#ffcc80; font-size: clamp(0.9rem, 3.8vw, 1.5rem);">${p.total}</div>
         </div>`;
     }).join('');
