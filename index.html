@@ -374,77 +374,29 @@ function calculate(games){
     return scores;
 }
 
-async function refreshData(){
+async function refreshData() {
     const statusBox = document.getElementById('status');
-    statusBox.innerText = 'Connecting...';
+    statusBox.innerText = 'Syncing...';
     
-    const targetUrl = 'https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json';
-    
-    const primaryProxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl) + '&cb=' + Date.now();
-    const secondaryProxy = 'https://corsproxy.io/?url=' + encodeURIComponent(targetUrl) + '&cb=' + Date.now();
-
-    let games = null;
-
-    // PIPELINE STAGE 1: Primary Proxy (AllOrigins)
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-        const response = await fetch(primaryProxy, { signal: controller.signal });
-        clearTimeout(timeoutId);
+        // Fetch the file from your own repo
+        // Using ?cb=Date.now() prevents the browser from caching old data
+        const response = await fetch('matches.json?cb=' + Date.now());
         
-        if (response.ok) {
-            const wrapper = await response.json();
-            // AllOrigins wraps data in a stringified .contents property
-            const rawPayload = typeof wrapper.contents === 'string' ? JSON.parse(wrapper.contents) : wrapper.contents;
-            games = rawPayload.matches || [];
-        } else {
-            throw new Error("Primary stream down");
-        }
+        if (!response.ok) throw new Error('Data file not found');
+        
+        const games = await response.json();
+        
+        // Process data
+        teamScores = calculate(games);
+        statusBox.innerText = 'Updated: ' + new Date().toLocaleTimeString();
     } catch(e) {
-        console.warn("Primary proxy dropped or timed out. Redirecting to secondary pipeline...");
-        
-        // PIPELINE STAGE 2: Secondary Proxy (CorsProxy.io)
-        try {
-            const controller2 = new AbortController();
-            const timeoutId2 = setTimeout(() => controller2.abort(), 4000);
-
-            const response = await fetch(secondaryProxy, { signal: controller2.signal });
-            clearTimeout(timeoutId2);
-
-            if (response.ok) {
-                const rawPayload = await response.json();
-                // CorsProxy.io returns the clean raw JSON directly without a .contents wrapper
-                if (rawPayload) {
-                    games = rawPayload.matches || rawPayload;
-                }
-            }
-        } catch(err) {
-            console.error("Secondary proxy error. Invoking offline failsafe module.");
-        }
-    }
-
-    // RESOLUTION ENGINE
-    if (games && (Array.isArray(games) || typeof games === 'object') && Object.keys(games).length > 0) {
-        // If the data is nested inside a 'matches' key or raw array, normalize it
-        const finalMatches = Array.isArray(games) ? games : (games.matches || []);
-        
-        teamScores = calculate(finalMatches);
-        localStorage.setItem('wc26_failsafe_matrix', JSON.stringify(teamScores));
-        statusBox.innerText = 'Live Stream Connected: ' + new Date().toLocaleTimeString();
-    } else {
-        const cachedScores = localStorage.getItem('wc26_failsafe_matrix');
-        if (cachedScores) {
-            teamScores = JSON.parse(cachedScores);
-            statusBox.innerText = 'Loaded From Cache';
-        } else {
-            teamScores = calculate(EMBEDDED_FALLBACK_FIXTURES);
-            statusBox.innerText = 'Offline Standby Engine Active';
-        }
+        console.error("Local fetch failed, using fallback:", e);
+        teamScores = calculate(EMBEDDED_FALLBACK_FIXTURES);
+        statusBox.innerText = 'Using Local Fallback';
     }
     render();
 }
-
 function render(){
     let teams=Object.keys(SEEDS).map(t=>({
         team:t,seed:SEEDS[t],
