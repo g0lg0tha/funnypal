@@ -111,17 +111,6 @@ transition: filter 0.2s;
 }
 button:hover { filter: brightness(1.2); }
 
-.section-title {
-font-family: 'Cinzel', serif;
-text-align: center;
-font-size: clamp(1.1rem, 3.5vw, 1.35rem);
-color: var(--gold-trim);
-letter-spacing: 2px;
-margin: 0 0 20px 0;
-text-transform: uppercase;
-text-shadow: 0 2px 4px #000;
-}
-
 .nav-button {
     background: linear-gradient(180deg, #8c5d43 0%, #462a1a 100%);
     border: 1px solid #1a0c05;
@@ -137,6 +126,17 @@ text-shadow: 0 2px 4px #000;
     text-shadow: 0 1px 2px #000;
 }
 .nav-button:hover { filter: brightness(1.2); }
+    
+.section-title {
+font-family: 'Cinzel', serif;
+text-align: center;
+font-size: clamp(1.1rem, 3.5vw, 1.35rem);
+color: var(--gold-trim);
+letter-spacing: 2px;
+margin: 0 0 20px 0;
+text-transform: uppercase;
+text-shadow: 0 2px 4px #000;
+}
 
 .grid-headers, .capsule-row {
 display: grid;
@@ -361,6 +361,12 @@ function findInternalTeamKey(apiName) {
     // Explicit fix for DR Congo
     if (normApi.includes("democratic republic")) return "DR Congo";
     
+    // Explicit fix for Turkey / Türkiye
+    if (normApi === "turkey" || normApi === "turkiye") return "Türkiye";
+    
+    // Explicit fix for Czech Republic / Czechia
+    if (normApi.includes("czech")) return "Czechia";
+    
     for (const teamKey in SEEDS) { if (normalizeName(teamKey) === normApi) return teamKey; }
     for (const teamKey in SEEDS) { if (normApi.includes(normalizeName(teamKey))) return teamKey; }
     return null; 
@@ -392,9 +398,24 @@ function calculate(games){
         as = parseInt(as);
         if(isNaN(hs) || isNaN(as) || hs < 0 || as < 0) return;
 
-        if(hs > as) scores[home].match += 8;
-        else if(as > hs) scores[away].match += 8;
-        else { scores[home].match += 4; scores[away].match += 4; }
+        if(hs > as) { scores[home].match += 8; return; }
+        if(as > hs) { scores[away].match += 8; return; }
+
+        // Drawn after full time - check penalties
+        let hp = g.pen1 ?? g.home_penalty_score;
+        let ap = g.pen2 ?? g.away_penalty_score;
+        if (hp !== null && hp !== undefined && hp !== "" && ap !== null && ap !== undefined && ap !== "") {
+            hp = parseInt(hp);
+            ap = parseInt(ap);
+            if (!isNaN(hp) && !isNaN(ap)) {
+                if (hp > ap) { scores[home].match += 8; return; }
+                if (ap > hp) { scores[away].match += 8; return; }
+            }
+        }
+
+        // Genuine draw
+        scores[home].match += 4;
+        scores[away].match += 4;
     });
     return scores;
 }
